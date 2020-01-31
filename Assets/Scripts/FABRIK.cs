@@ -6,11 +6,11 @@ public class FABRIK : MonoBehaviour
 {
 
     public Transform[] joints;
-    private Transform initialJoint;
+    private Vector3 initialJoint;
     private List<float> boneLenghts = new List<float>();
     private float totalLenght = 0;
     public float moveSpeed = 1;
-    public float errorMargin = 0.1f;
+    private float errorMargin = 0.1f;
 
     private int maxItterations = 100;
     private int currentItteration = 0;
@@ -22,7 +22,7 @@ public class FABRIK : MonoBehaviour
     void Start()
     {
         // Setting root joint.
-        initialJoint = joints[0];
+        initialJoint = joints[0].position;
 
         // Calculating bone lenght
         for (int i = 0; i < joints.Length - 1; i++)
@@ -35,18 +35,17 @@ public class FABRIK : MonoBehaviour
         {
             totalLenght += boneLenghts[i];
         }
-
     }
 
     // Update is called once per frame
     void FixedUpdate()
     {
-        if (target == null)
+        if (target == null)// || currentItteration == maxItterations)
             return;
 
-        //If target is out of reach, return
-        //if ((initialJoint.position - target.position).magnitude > totalLenght)
-        //    return;
+        //if target is out of reach, return
+        if ((initialJoint - target.position).magnitude > totalLenght)
+            return;
 
         if ((joints[joints.Length - 1].position - target.position).magnitude > errorMargin)
         {
@@ -61,14 +60,36 @@ public class FABRIK : MonoBehaviour
     void ForwardKinematics()
     {
         // Setting the first joint back to its original position.
-        joints[0].position = initialJoint.position;
+        joints[0].position = initialJoint;
+        //Setting positions from joints
         for (int i = 0; i < joints.Length; i++)
         {
             //Skip the overwrite of the first joint
             if (i == 0)
                 continue;
+
             //Move joint[i] to new position calculated from previous joint
             joints[i].position = ((joints[i].position - joints[i - 1].position).normalized * boneLenghts[i - 1] + joints[i - 1].position);
+
+            if (currentItteration != maxItterations)
+                currentItteration++;
+        }
+
+        //Rotate bones to look at the next joint
+        for (int i = 0; i < joints.Length - 1; i++)
+        {
+            //Calculating rotation
+            Vector3 relativePos = joints[i + 1].position - joints[i].position;
+            Quaternion rotation = Quaternion.LookRotation(relativePos, Vector3.up);
+            Transform tempJoint;
+
+            //Saving next joints position/rotation
+            tempJoint = joints[i + 1];
+            //Rotating joint
+            joints[i].rotation = rotation;
+            joints[i].Rotate(joints[i].rotation.x, joints[i].rotation.y - 90, joints[i].rotation.z - 90);
+            //Applying old values to next joint
+            joints[i + 1] = tempJoint;
         }
     }
 
